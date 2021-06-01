@@ -13,27 +13,29 @@
 #define HIGH 100
 
 static int get_input (void);
-//int creacionbitmap(void);
 static int limpiarBuff(void);
 
 int main(void){
     
     int input=0;
     int finish=0;
+    int do_exit = false;
     int i=0;
     int j=0;
-    //creacionbitmap();
     
     ALLEGRO_DISPLAY * display = NULL;
     ALLEGRO_EVENT_QUEUE * event_queue = NULL;
-    bool close_display = false; //explicar bool tipo de dato
 
     if (!al_init()) {
         fprintf(stderr, "failed to initialize allegro!\n");
         return -1;
     }
 
-    //queue == cola/fila en ingles 
+    if (!al_install_keyboard()) {
+        fprintf(stderr, "failed to initialize the keyboard!\n");
+        return -1;
+    }
+
     event_queue = al_create_event_queue(); //Allegro usa cola eventos, como las colas del super pero sin comida :( (por orden de llegada)
     if (!event_queue) {
         fprintf(stderr, "failed to create event_queue!\n");
@@ -46,20 +48,29 @@ int main(void){
         al_destroy_event_queue(event_queue);
         return -1;
     }
+
+    if (!al_init_primitives_addon()) {
+        fprintf(stderr, "failed to initialize primitives addon!\n");
+        al_destroy_event_queue(event_queue);
+        al_destroy_display(display);
+        return -1;
+    }
     /***************************************************************/
-    al_init_primitives_addon();
+    
 
     /***************************************************************/
     //Registra el display a la cola de eventos, los eventos del display se iran guardando en la cola 
     // a medida que vayan sucediendo 
     al_register_event_source(event_queue, al_get_display_event_source(display));
+    al_register_event_source(event_queue, al_get_keyboard_event_source()); //REGISTRAMOS EL TECLADO
 
     //void al_clear_to_color(ALLEGRO_COLOR color) , ALLEGRO_COLOR al_map_rgb( unsigned char r, unsigned char g, unsigned char b)
-    al_clear_to_color(al_color_name("darkgreen"));
+    al_clear_to_color(al_color_name("burlywood"));
 
     for(i=0; i<8; i++){
-        al_draw_circle(50+i*100, 50, 30, al_color_name("darkseagreen"), 10); //para solo la circunferencia
+        al_draw_circle(50+i*100, 50, 30, al_color_name("cadetblue"), 10); //para solo la circunferencia
     }
+    al_flip_display();
     
     do{
         input=get_input();          //trae la instruccion introducida por teclado por el usuario
@@ -81,46 +92,76 @@ int main(void){
             finish=1;
             break;
 
+            case -5:
+            al_flush_event_queue(event_queue);
+            while (!do_exit) {
+                ALLEGRO_EVENT ev;
+                if (al_get_next_event(event_queue, &ev)) //Toma un evento de la cola, VER RETURN EN DOCUMENT.
+                {
+                    if (ev.type == ALLEGRO_EVENT_DISPLAY_CLOSE){
+                        do_exit = true;
+                        finish = true;
+                    }
+                    else if (ev.type == ALLEGRO_EVENT_KEY_DOWN) {
+                        if(ev.keyboard.keycode == ALLEGRO_KEY_B){
+                            do_exit=true;
+                        }
+                    }
+                    else if (ev.type == ALLEGRO_EVENT_KEY_UP) {
+                        if(ev.keyboard.keycode == ALLEGRO_KEY_B){
+                            do_exit=true;
+                        }
+                    }
+                }
+
+                if (al_is_event_queue_empty(event_queue)) {
+                    al_clear_to_color(al_color_name("burlywood")); 
+                    for(i=7, j=50; i>=0; i--, j+=100){
+                        al_draw_filled_circle(j, 50, 22, al_color_name("burlywood"));
+                        al_draw_circle(50+i*100, 50, 30, al_color_name("cadetblue"), 10); //para solo la circunferencia 
+                    }
+                    al_flip_display();
+                    al_rest(1.0);
+                    al_clear_to_color(al_color_name("burlywood")); 
+                    for(i=7, j=50; i>=0; i--, j+=100){
+                        if(bitGet('A',i)){
+                            al_draw_filled_circle(j, 50, 22, al_color_name("lightseagreen"));
+                        }
+                        else {
+                            al_draw_filled_circle(j, 50, 22, al_color_name("burlywood"));
+                        }
+                        al_draw_circle(50+i*100, 50, 30, al_color_name("cadetblue"), 10); //para solo la circunferencia 
+                    }
+                    al_flip_display();
+                    al_rest(1.0);
+                }
+            }
+            break;
+            
             default:                //si se introdujo un numero del 0 al 7 se enciende el led correspondiente
             bitSet('A',input);      //funcion que enciende un led
             break;
         }
-
+        al_clear_to_color(al_color_name("burlywood")); 
         for(i=7, j=50; i>=0; i--, j+=100){
             if(bitGet('A',i)){
-                al_draw_filled_circle(j, 50, 22, al_color_name("darkseagreen"));
+                al_draw_filled_circle(j, 50, 22, al_color_name("lightseagreen"));
             }
             else{
-                al_draw_filled_circle(j, 50, 22, al_color_name("darkgreen"));
+                al_draw_filled_circle(j, 50, 22, al_color_name("burlywood"));
             }
-            al_flip_display();
+            al_draw_circle(50+i*100, 50, 30, al_color_name("cadetblue"), 10); //para solo la circunferencia 
         }
+        al_flip_display();
+
     }while (finish!=1); 
-
-
-
-    
-
-    while (!close_display) {
-        ALLEGRO_EVENT ev;
-        if (al_get_next_event(event_queue, &ev)) //Toma un evento de la cola, VER RETURN EN DOCUMENT.
-        {
-            if (ev.type == ALLEGRO_EVENT_DISPLAY_CLOSE)
-                close_display = true;
-        }
-    }
 
     al_shutdown_primitives_addon();
     al_destroy_display(display); //Destruir recursor empleados 
     al_destroy_event_queue(event_queue);
     //Recordar al init es "destruido" automaticamente 
     return 0;
-
-/******************************************/
-  
-
 }
-
 static int get_input(void){
 
     //variables auxiliares locales
@@ -136,7 +177,7 @@ static int get_input(void){
             if (input>='0'&&input<='7'){    //se fija si es una de las entradas validas
                 error=0;
             }
-            else if ((input=='t')||(input=='c')||(input=='s')||(input=='q')){
+            else if ((input=='t')||(input=='c')||(input=='s')||(input=='q')||(input=='b')){
                 error=0;
             }
         }
@@ -166,6 +207,10 @@ static int get_input(void){
             case 'q':   //le asigna a la q el -4
             input=-4;
             break;
+
+            case 'b':   //le asigna a la b el -5
+            input=-5;
+            break;
         }
     }
     else {              //si la entrada fue un numero valido, lo convierte de ascii a decimal
@@ -173,62 +218,13 @@ static int get_input(void){
     }
     return input;
 }
-/*
-int creacionbitmap(void){ //crea el bitmap :)
-    ALLEGRO_DISPLAY * display = NULL;
-    ALLEGRO_EVENT_QUEUE * event_queue = NULL;
-    bool close_display = false; //explicar bool tipo de dato
-    int i = 0;
+/**********************************************************/
 
-    if (!al_init()) {
-        fprintf(stderr, "failed to initialize allegro!\n");
-        return -1;
-    }
-
-    //queue == cola/fila en ingles 
-    event_queue = al_create_event_queue(); //Allegro usa cola eventos, como las colas del super pero sin comida :( (por orden de llegada)
-    if (!event_queue) {
-        fprintf(stderr, "failed to create event_queue!\n");
-        return -1;
-    }
-
-
-    display = al_create_display(WIDTH, HIGH); //Por que conviene crear el display ultimo???
-    if (!display) {
-        fprintf(stderr, "failed to create display!\n");
-        al_destroy_event_queue(event_queue);
-        return -1;
-    }
-    al_init_primitives_addon();
-
-    //Registra el display a la cola de eventos, los eventos del display se iran guardando en la cola 
-    // a medida que vayan sucediendo 
-    al_register_event_source(event_queue, al_get_display_event_source(display));
-
-    //void al_clear_to_color(ALLEGRO_COLOR color) , ALLEGRO_COLOR al_map_rgb( unsigned char r, unsigned char g, unsigned char b)
-    al_clear_to_color(al_color_name("darkgreen"));
-
-    for(i=0; i<8; i++){
-        al_draw_circle(50+i*100, 50, 30, al_color_name("darkseagreen"), 10); //para solo la circunferencia
-    }
-    
-    al_flip_display();
-
-    while (!close_display) {
-        ALLEGRO_EVENT ev;
-        if (al_get_next_event(event_queue, &ev)) //Toma un evento de la cola, VER RETURN EN DOCUMENT.
-        {
-            if (ev.type == ALLEGRO_EVENT_DISPLAY_CLOSE)
-                close_display = true;
-        }
-    }
-
-    al_destroy_display(display); //Destruir recursor empleados 
-    al_destroy_event_queue(event_queue);
-    //Recordar al init es "destruido" automaticamente 
-    return 0;
-}*/
-
+/**********************************************************/
+/**
+ * @brief LIMPIAR_BUFFER: limpia el stdin
+ * @return devuelve 1 si hubo entrada invalida, devuelve 0 si la entrada fue valida (caracter\n)
+*/
 static int limpiarBuff(void){
     int cont=0;
     while(getchar()!='\n'){
@@ -238,4 +234,4 @@ static int limpiarBuff(void){
 
     return cont;
 }
-
+/**********************************************************/
